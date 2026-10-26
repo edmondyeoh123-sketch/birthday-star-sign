@@ -154,7 +154,7 @@
                  placeholder="DD/MM/YYYY" maxlength="10" aria-describedby="hint" spellcheck="false">
           <button id="find" type="submit">Find my sign</button>
         </div>
-        <p id="hint" class="hint">Day, month, then year. Numbers only, e.g. 25/12/1998.</p>
+        <p id="hint" class="hint">Day, month, then year. Just type the numbers, e.g. 25121998. The slashes are added for you.</p>
       </form>
 
       <div class="result" id="result" aria-live="polite"></div>
@@ -380,14 +380,41 @@
   input.addEventListener("beforeinput", (e) => {
     if (e.data && /[^0-9\/\-.]/.test(e.data)) {
       e.preventDefault();
-      setHint("Only numbers and / - . can be typed here.", true);
+      setHint("Only numbers can be typed here.", true);
     }
   });
-  input.addEventListener("input", () => {
-    const cleaned = input.value.replace(ALLOWED, "");
-    if (cleaned !== input.value) {
-      input.value = cleaned;
-      setHint("Only numbers and / - . can be typed here.", true);
+  // Phone number keypads have no "/" key, so the slashes are added automatically:
+  // typing 25121998 shows 25/12/1998. A typed / - or . still moves on to the next part,
+  // so 1/5/2000 works on a computer keyboard too.
+  function autoFormat(raw, inserting) {
+    const parts = ["", "", ""];
+    let i = 0;
+    for (const c of raw) {
+      if (c >= "0" && c <= "9") {
+        if (i < 2 && parts[i].length === 2) i++;
+        if (parts[i].length < (i === 2 ? 4 : 2)) parts[i] += c;
+      } else if ("/-.".includes(c) && parts[i].length && i < 2) {
+        i++;
+      }
+    }
+    let out = parts[0];
+    if (i >= 1) out += "/" + parts[1];
+    if (i >= 2) out += "/" + parts[2];
+    // Add the next slash straight away while typing (but not while deleting)
+    if (inserting && i < 2 && parts[i].length === 2) out += "/";
+    return out;
+  }
+
+  input.addEventListener("input", (e) => {
+    const hadBadChar = /[^0-9\/\-.]/.test(input.value);
+    const typingAtEnd = input.selectionStart === input.value.length;
+    if (typingAtEnd) {
+      input.value = autoFormat(input.value, (e.inputType || "").startsWith("insert"));
+    } else if (hadBadChar) {
+      input.value = input.value.replace(ALLOWED, "");
+    }
+    if (hadBadChar) {
+      setHint("Only numbers can be typed here.", true);
     } else if (hint.classList.contains("error")) {
       setHint(HINT_TEXT, false);
     }
