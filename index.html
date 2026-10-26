@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Type your birthday to find your Western star sign and the dates it covers.">
+<style>*, *::before, *::after { box-sizing: border-box; } body { margin: 0; } [hidden] { display: none !important; }</style>
+<title>Birthday Star Sign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: an almanac page. Left column is the date form and answer, right column is a year wheel
+     where each sign's slice is sized by its real number of days. Full range table underneath. */
+  :root {
+    --bg: #ECEFF5;
+    --surface: #FFFFFF;
+    --ink: #18213A;
+    --muted: #586178;
+    --line: #CDD3E0;
+    --accent: #9C6A12;
+    --accent-soft: #F4E7CB;
+    --ring-a: #DCE2EE;
+    --ring-b: #E7EBF3;
+    --error: #B3261E;
+    --font-display: "Young Serif", Georgia, "Times New Roman", serif;
+    --font-body: "Figtree", -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1425; --surface: #171E34; --ink: #E6E9F2; --muted: #9AA3B9; --line: #2C3552;
+      --accent: #E3B458; --accent-soft: #3A311E; --ring-a: #1E2641; --ring-b: #252E4B; --error: #F2877F;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1425; --surface: #171E34; --ink: #E6E9F2; --muted: #9AA3B9; --line: #2C3552;
+    --accent: #E3B458; --accent-soft: #3A311E; --ring-a: #1E2641; --ring-b: #252E4B; --error: #F2877F;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.55;
+    padding-block: 40px 56px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .page { max-width: 1040px; margin: 0 auto; display: grid; gap: 40px; }
+
+  header { display: grid; gap: 6px; max-width: 62ch; }
+  .eyebrow {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent);
+  }
+  h1 {
+    font-family: var(--font-display); font-weight: 400; font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.1; margin: 0; text-wrap: balance;
+  }
+  .lede { margin: 0; color: var(--muted); }
+
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+  @media (max-width: 780px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+  .left { display: grid; gap: 28px; min-width: 0; }
+
+  form { display: grid; gap: 10px; }
+  label { font-weight: 600; font-size: 15px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  input#birthday {
+    flex: 1 1 200px; min-width: 0;
+    font-family: var(--font-mono); font-size: 22px; letter-spacing: 0.04em;
+    padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 8px;
+    background: var(--surface); color: var(--ink);
+  }
+  input#birthday::placeholder { color: var(--muted); opacity: 0.6; }
+  input#birthday:focus-visible { outline: 3px solid var(--accent-soft); border-color: var(--accent); }
+  input#birthday[aria-invalid="true"] { border-color: var(--error); }
+  button#find {
+    flex: 0 0 auto; font: inherit; font-weight: 600; font-size: 16px;
+    padding: 12px 22px; border: none; border-radius: 8px; cursor: pointer;
+    background: var(--ink); color: var(--bg);
+  }
+  button#find:hover { background: var(--accent); }
+  button#find:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .hint { font-size: 14px; color: var(--muted); margin: 0; min-height: 1.4em; }
+  .hint.error { color: var(--error); font-weight: 500; }
+
+  .result {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 24px; display: grid; gap: 14px;
+  }
+  .result-top { display: flex; align-items: center; gap: 18px; }
+  .glyph {
+    width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; flex: 0 0 auto;
+    fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .big-symbol {
+    color: var(--accent); width: 72px; height: 72px; display: grid; place-items: center;
+    background: var(--accent-soft); border-radius: 50%; flex: 0 0 auto;
+  }
+  .big-symbol .glyph { width: 40px; height: 40px; }
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent);
+  }
+  .sign-name { font-family: var(--font-display); font-size: 2.25rem; line-height: 1.1; margin: 4px 0 0; }
+  .sign-title { margin: 0; color: var(--muted); }
+  .facts { margin: 0; display: grid; gap: 8px; }
+  .facts p { margin: 0; }
+  .facts strong { font-weight: 600; }
+  .mono { font-family: var(--font-mono); font-size: 0.92em; }
+  .note { font-size: 13.5px; color: var(--muted); margin: 0; border-top: 1px solid var(--line); padding-top: 12px; }
+
+  .wheel-wrap { min-width: 0; display: grid; gap: 10px; justify-items: center; }
+  .wheel-wrap svg { width: 100%; max-width: 460px; height: auto; display: block; }
+  .wheel-caption { font-size: 13.5px; color: var(--muted); text-align: center; margin: 0; max-width: 46ch; }
+
+  section.ranges { display: grid; gap: 14px; }
+  h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; margin: 0; }
+  .table-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  tbody tr:last-child td { border-bottom: none; }
+  td .sym { color: var(--accent); margin-right: 10px; font-size: 1.15em; }
+  tr.current td { background: var(--accent-soft); font-weight: 600; }
+  td.trait { white-space: normal; color: var(--muted); min-width: 16ch; }
+  tr.current td.trait { color: var(--ink); font-weight: 400; }
+  @media (max-width: 560px) { th.trait-h, td.trait { display: none; } th, td { padding: 10px 12px; } }
+
+  @media (prefers-reduced-motion: no-preference) {
+    #marker { transition: transform 0.6s cubic-bezier(.3,.7,.2,1); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <span class="eyebrow">Western zodiac</span>
+    <h1>Which star sign is your birthday?</h1>
+    <p class="lede">Type your date of birth to see your sign and the dates it covers.</p>
+  </header>
+
+  <div class="main">
+    <div class="left">
+      <form id="form" novalidate>
+        <label for="birthday">Your birthday</label>
+        <div class="row">
+          <input id="birthday" name="birthday" type="text" inputmode="numeric" autocomplete="bday"
+                 placeholder="DD/MM/YYYY" maxlength="10" aria-describedby="hint" spellcheck="false">
+          <button id="find" type="submit">Find my sign</button>
+        </div>
+        <p id="hint" class="hint">Day, month, then year. Numbers only, e.g. 25/12/1998.</p>
+      </form>
+
+      <div class="result" id="result" aria-live="polite"></div>
+    </div>
+
+    <div class="wheel-wrap">
+      <svg id="wheel" viewBox="-170 -170 340 340" role="img" aria-label="Zodiac year wheel"></svg>
+      <p class="wheel-caption">The year as a wheel, starting 1 January at the top. Each slice is as wide as the number of days in that sign. The line marks the birthday.</p>
+    </div>
+  </div>
+
+  <section class="ranges">
+    <h2>All 12 signs and their dates</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Sign</th><th>Dates</th><th>Days</th><th class="trait-h">Known for</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  // Same signs and dates as horoscope.py: [name, symbol, [startMonth, startDay], [endMonth, endDay], emblem, traits]
+  const SIGNS = [
+    ["Capricorn",   "\u2651", [12, 22], [1, 19],  "The Goat",          "Disciplined, patient and ambitious."],
+    ["Aquarius",    "\u2652", [1, 20],  [2, 18],  "The Water Bearer",  "Independent, inventive and humane."],
+    ["Pisces",      "\u2653", [2, 19],  [3, 20],  "The Fish",          "Intuitive, gentle and artistic."],
+    ["Aries",       "\u2648", [3, 21],  [4, 19],  "The Ram",           "Bold, energetic and driven."],
+    ["Taurus",      "\u2649", [4, 20],  [5, 20],  "The Bull",          "Reliable, patient and practical."],
+    ["Gemini",      "\u264A", [5, 21],  [6, 20],  "The Twins",         "Curious, adaptable and talkative."],
+    ["Cancer",      "\u264B", [6, 21],  [7, 22],  "The Crab",          "Caring, loyal and emotional."],
+    ["Leo",         "\u264C", [7, 23],  [8, 22],  "The Lion",          "Confident, warm and generous."],
+    ["Virgo",       "\u264D", [8, 23],  [9, 22],  "The Maiden",        "Careful, analytical and helpful."],
+    ["Libra",       "\u264E", [9, 23],  [10, 22], "The Scales",        "Fair, social and diplomatic."],
+    ["Scorpio",     "\u264F", [10, 23], [11, 21], "The Scorpion",      "Passionate, determined and brave."],
+    ["Sagittarius", "\u2650", [11, 22], [12, 21], "The Archer",        "Adventurous, optimistic and free-spirited."]
+  ];
+  // Zodiac symbols drawn as shapes (24x24 grid), so they look the same on every device
+  // instead of depending on the viewer's fonts.
+  const GLYPHS = {
+    Aries:       '<path d="M12 21V9C12 5 10 3 7.5 3S3 5 3 7.5 4.5 11 6.5 10.5M12 9C12 5 14 3 16.5 3S21 5 21 7.5 19.5 11 17.5 10.5"/>',
+    Taurus:      '<path d="M4 3C4 7 7.5 9 12 9S20 7 20 3"/><circle cx="12" cy="15" r="6"/>',
+    Gemini:      '<path d="M5 3C9 4.5 15 4.5 19 3M5 21C9 19.5 15 19.5 19 21M9 4.2V19.8M15 4.2V19.8"/>',
+    Cancer:      '<circle cx="7" cy="9" r="3"/><path d="M7 6C11 3.5 17 4 21 7"/><circle cx="17" cy="15" r="3"/><path d="M17 18C13 20.5 7 20 3 17"/>',
+    Leo:         '<circle cx="7" cy="15" r="3"/><path d="M10 15C10 11 8 9 8 6.5A4.5 4.5 0 0 1 17 6.5C17 10 14 13 14 17 14 19.5 16 21 18 21S21 20 21 18"/>',
+    Virgo:       '<path d="M3 6C4 5 5 5 5 7V18M5 8C5 5 9 5 9 8V18M9 8C9 5 13 5 13 8V17C13 20 16 21 18 19M13 13C15 10 19 10 19 13S16 18 13 19"/>',
+    Libra:       '<path d="M3 20H21M3 16H8C6 14 6 8 12 8S18 14 16 16H21"/>',
+    Scorpio:     '<path d="M3 6C4 5 5 5 5 7V18M5 8C5 5 9 5 9 8V18M9 8C9 5 13 5 13 8V17C13 19 15 20 18 18L21 15M17 15H21V19"/>',
+    Sagittarius: '<path d="M4 20L20 4M12 4H20V12M7 11L13 17"/>',
+    Capricorn:   '<path d="M3 5L7 17L11 5V16C11 19 13 20.5 15.5 20.5"/><circle cx="16" cy="16.5" r="3.5"/>',
+    Aquarius:    '<path d="M3 10L6 7L9 10L12 7L15 10L18 7L21 10M3 17L6 14L9 17L12 14L15 17L18 14L21 17"/>',
+    Pisces:      '<path d="M5 3C10 8 10 16 5 21M19 3C14 8 14 16 19 21M6.5 12H17.5"/>'
+  };
+  const glyph = (name) => `<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true">${GLYPHS[name]}</svg>`;
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const CUM = [0,31,59,90,120,151,181,212,243,273,304,334];
+  const DATE_PATTERN = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/;
+  const ALLOWED = /[^0-9\/\-.]/g;
+  const EXAMPLE = "14/02/1998";
+
+  // Day of a normal 365-day year, counting from 0. 29 Feb sits halfway between 28 Feb and 1 Mar.
+  const dayOfYear = (m, d) => (m === 2 && d === 29) ? 58.5 : CUM[m - 1] + d - 1;
+  const fmt = ([m, d]) => d + " " + MONTHS[m - 1];
+  const signLength = (s) => {
+    const a = dayOfYear(...s[2]), b = dayOfYear(...s[3]);
+    return ((b - a + 365) % 365) + 1;
+  };
+
+  function findSign(m, d) {
+    const md = m * 100 + d;
+    for (const s of SIGNS) {
+      const st = s[2][0] * 100 + s[2][1], en = s[3][0] * 100 + s[3][1];
+      if (st <= en ? (md >= st && md <= en) : (md >= st || md <= en)) return s; // Capricorn wraps over New Year
+    }
+    return null;
+  }
+
+  function parseBirthday(text) {
+    const match = DATE_PATTERN.exec(text.trim());
+    if (!match) return { error: "Please key in a date only, in DD/MM/YYYY form, e.g. 25/12/1998." };
+    const [d, m, y] = match.slice(1).map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) {
+      return { error: "That date doesn't exist. Check the day and month." };
+    }
+    if (dt > new Date()) return { error: "Your birthday can't be in the future." };
+    if (y < 1900) return { error: "Please enter a year from 1900 onwards." };
+    return { d, m, y };
+  }
+
+  // ---------- Wheel ----------
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.getElementById("wheel");
+  const R_OUT = 150, R_IN = 104;
+  const angleOf = (doy) => (doy / 365) * 2 * Math.PI - Math.PI / 2;
+  const pt = (r, a) => [r * Math.cos(a), r * Math.sin(a)];
+  const el = (tag, attrs, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    (parent || svg).appendChild(n);
+    return n;
+  };
+  const segPaths = [];
+  const glyphGroups = [];
+
+  function buildWheel() {
+    SIGNS.forEach((s, i) => {
+      const a0 = angleOf(dayOfYear(...s[2]));
+      let endDoy = dayOfYear(...s[3]) + 1;
+      if (endDoy < dayOfYear(...s[2])) endDoy += 365;
+      const a1 = angleOf(endDoy);
+      const large = (a1 - a0) > Math.PI ? 1 : 0;
+      const [x0, y0] = pt(R_OUT, a0), [x1, y1] = pt(R_OUT, a1);
+      const [x2, y2] = pt(R_IN, a1), [x3, y3] = pt(R_IN, a0);
+      const path = el("path", {
+        d: `M${x0},${y0} A${R_OUT},${R_OUT} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${R_IN},${R_IN} 0 ${large} 0 ${x3},${y3} Z`,
+        fill: i % 2 ? "var(--ring-a)" : "var(--ring-b)", stroke: "var(--bg)", "stroke-width": 1.5
+      });
+      segPaths.push(path);
+      const [lx, ly] = pt((R_OUT + R_IN) / 2, (a0 + a1) / 2);
+      const g = el("g", {
+        transform: `translate(${lx - 10},${ly - 10}) scale(${20 / 24})`,
+        fill: "none", stroke: "var(--ink)", "stroke-width": 2.2, "stroke-linecap": "round", "stroke-linejoin": "round"
+      });
+      g.innerHTML = GLYPHS[s[0]];
+      glyphGroups.push(g);
+      const title = el("title", {}, path);
+      title.textContent = `${s[0]}: ${fmt(s[2])} to ${fmt(s[3])}`;
+    });
+
+    // Month ticks and initials inside the ring
+    el("circle", { cx: 0, cy: 0, r: R_IN - 2, fill: "none", stroke: "var(--line)", "stroke-width": 1 });
+    MONTHS.forEach((name, i) => {
+      const a = angleOf(CUM[i]);
+      const [ax, ay] = pt(R_IN - 2, a), [bx, by] = pt(R_IN - 10, a);
+      el("line", { x1: ax, y1: ay, x2: bx, y2: by, stroke: "var(--muted)", "stroke-width": 1 });
+      const mid = angleOf(CUM[i] + (i === 11 ? 31 : CUM[i + 1] - CUM[i]) / 2);
+      const [tx, ty] = pt(R_IN - 20, mid);
+      const t = el("text", {
+        x: tx, y: ty, "text-anchor": "middle", "dominant-baseline": "central",
+        "font-size": 9.5, fill: "var(--muted)", style: "font-family: var(--font-body); letter-spacing: 0.06em"
+      });
+      t.textContent = name.slice(0, 3).toUpperCase();
+    });
+
+    // Birthday marker: drawn pointing up, rotated into place
+    const g = el("g", { id: "marker" });
+    el("line", { x1: 0, y1: 0, x2: 0, y2: -(R_OUT + 8), stroke: "var(--accent)", "stroke-width": 2, "stroke-linecap": "round" }, g);
+    el("circle", { cx: 0, cy: -(R_OUT + 8), r: 6, fill: "var(--accent)", stroke: "var(--bg)", "stroke-width": 2 }, g);
+    el("circle", { cx: 0, cy: 0, r: 5, fill: "var(--accent)" }, g);
+
+    const centre = el("text", {
+      id: "centre", x: 0, y: 30, "text-anchor": "middle", "font-size": 13,
+      fill: "var(--muted)", style: "font-family: var(--font-mono)"
+    });
+    centre.textContent = "";
+  }
+
+  function updateWheel(sign, m, d) {
+    SIGNS.forEach((s, i) => {
+      segPaths[i].setAttribute("fill", s === sign ? "var(--accent)" : (i % 2 ? "var(--ring-a)" : "var(--ring-b)"));
+    });
+    glyphGroups.forEach((g, i) => g.setAttribute("stroke", SIGNS[i] === sign ? "var(--bg)" : "var(--ink)"));
+    const deg = (dayOfYear(m, d) + 0.5) / 365 * 360;
+    document.getElementById("marker").style.transform = `rotate(${deg}deg)`;
+    document.getElementById("centre").textContent = `${d} ${MONTHS[m - 1].slice(0, 3)}`;
+    svg.setAttribute("aria-label", `Zodiac year wheel with ${sign[0]} highlighted and a marker at ${d} ${MONTHS[m - 1]}`);
+  }
+
+  // ---------- Table ----------
+  const tbody = document.getElementById("tbody");
+  const rows = [];
+  // Show the table in calendar order, starting with Aries (the traditional first sign)
+  [...SIGNS.slice(3), ...SIGNS.slice(0, 3)].forEach((s) => {
+    const tr = document.createElement("tr");
+    const len = signLength(s);
+    const days = s[0] === "Pisces" ? `${len} (${len + 1} in leap years)` : String(len);
+    tr.innerHTML = `<td><span class="sym">${glyph(s[0])}</span>${s[0]}</td>` +
+      `<td>${fmt(s[2])} \u2013 ${fmt(s[3])}</td><td>${days}</td><td class="trait">${s[5]}</td>`;
+    tbody.appendChild(tr);
+    rows.push([s, tr]);
+  });
+
+  // ---------- Result ----------
+  const result = document.getElementById("result");
+  function show(b, isExample) {
+    const sign = findSign(b.m, b.d);
+    const [name, sym, start, end, emblem, traits] = sign;
+    const startDoy = dayOfYear(...start);
+    const dayIn = Math.ceil((dayOfYear(b.m, b.d) - startDoy + 365) % 365) + 1;
+    const len = signLength(sign) + (name === "Pisces" && b.y % 4 === 0 && (b.y % 100 !== 0 || b.y % 400 === 0) ? 1 : 0);
+    result.innerHTML = `
+      <div class="result-top">
+        <div class="big-symbol" aria-hidden="true">${glyph(name)}</div>
+        <div>
+          <span class="pill">${isExample ? "Example" : "Your star sign"}</span>
+          <p class="sign-name">${name}</p>
+          <p class="sign-title">${emblem}. ${traits}</p>
+        </div>
+      </div>
+      <div class="facts">
+        <p><strong>Birthday:</strong> <span class="mono">${b.d} ${MONTHS[b.m - 1]} ${b.y}</span></p>
+        <p><strong>${name} covers</strong> everyone born from <strong>${fmt(start)}</strong> to <strong>${fmt(end)}</strong>.</p>
+        <p>This birthday is day ${dayIn} of the ${len} days in ${name}, so it falls inside that range.</p>
+      </div>
+      <p class="note">Some sources move these dates by a day, because the date the Sun enters each sign changes slightly from year to year.</p>`;
+    rows.forEach(([s, tr]) => tr.classList.toggle("current", s === sign));
+    updateWheel(sign, b.m, b.d);
+  }
+
+  // ---------- Input: dates only ----------
+  const input = document.getElementById("birthday");
+  const hint = document.getElementById("hint");
+  const HINT_TEXT = hint.textContent;
+  function setHint(text, isError) {
+    hint.textContent = text;
+    hint.classList.toggle("error", !!isError);
+    input.setAttribute("aria-invalid", isError ? "true" : "false");
+  }
+
+  input.addEventListener("beforeinput", (e) => {
+    if (e.data && /[^0-9\/\-.]/.test(e.data)) {
+      e.preventDefault();
+      setHint("Only numbers and / - . can be typed here.", true);
+    }
+  });
+  input.addEventListener("input", () => {
+    const cleaned = input.value.replace(ALLOWED, "");
+    if (cleaned !== input.value) {
+      input.value = cleaned;
+      setHint("Only numbers and / - . can be typed here.", true);
+    } else if (hint.classList.contains("error")) {
+      setHint(HINT_TEXT, false);
+    }
+  });
+
+  document.getElementById("form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const b = parseBirthday(input.value);
+    if (b.error) { setHint(b.error, true); input.focus(); return; }
+    setHint(HINT_TEXT, false);
+    show(b, false);
+  });
+
+  buildWheel();
+  show(parseBirthday(EXAMPLE), true);
+})();
+</script>
+</body>
+</html>
